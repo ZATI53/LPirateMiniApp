@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>La Piraterie Boutique</title>
+    
+    <!-- Chargement de Tailwind CSS --><script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chargement de la police et des icônes --><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- AJOUT: Script officiel des Mini Apps Telegram --><script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <style>
+        /* Définition des couleurs pour la lueur sombre et l'accentuation */
+        :root {
+            --bg-dark: #100f1c; /* Fond très sombre (injecté) */
+            /* MODIFICATION: Rouge remplacé par Gris */
+            --accent-red: #6b7280; /* Gris (était #8b0000) */
+            --accent-light: #9ca3af; /* Gris clair (était #ff3333) */
+            --card-bg: #1e1d2c;
+        }
+
+        /* Styles de base et personnalisés */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: transparent; /* Conserve la transparence pour le canvas */
+            color: #ffffff;
+            overflow-x: hidden;
+            position: relative;
+            /* AJOUT ESTHÉTIQUE: Ombre portée sur le texte pour améliorer la lisibilité */
+            text-shadow: 0px 1px 3px rgba(0, 0, 0, 0.6);
+        }
+        
+        /* RETRAIT DES LUEURS CSS AU PROFIT DU CANVAS */
+        body::before, body::after {
+            content: none !important; 
+        }
+
+        /* --- NOUVEAU: Styles pour le Canvas de Vagues (Vaguesblanches.html) --- */
+        #wave-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2; /* Positionné en arrière-plan */
+            overflow: hidden;
+        }
+        #waveCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: block;
+            width: 100%;
+            height: 100%;
+            /* MODIFICATION ESTHÉTIQUE: Le fond du canvas utilise maintenant la variable CSS --bg-dark pour une intégration parfaite */
+            background-color: var(--bg-dark); 
+        }
+        /* ------------------------------------------------------------------- */
+
+
+        .container-main {
+            padding-bottom: 8rem;
+            position: relative;
+            z-index: 10;
+        }
+        .nav-bar {
+            background-color: rgba(30, 29, 44, 0.85); /* Fond carte sombre transparent */
+            backdrop-filter: blur(10px);
+            border-radius: 9999px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            padding: 0.5rem 1rem;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 95%;
+            max-width: 400px;
+            z-index: 50;
+        }
+        .nav-link { 
+            color: #d1d5db; 
+            transition: color 0.2s, transform 0.1s; 
+        }
+        /* MODIFICATION: Couleur active passée au gris */
+        .nav-link.active { color: var(--accent-light); } /* Gris clair pour l'actif */
+        .nav-link:active { transform: scale(0.95); }
+
+        .product-card {
+            /* MODIFICATION: Application de l'effet bulle aux cartes produit */
+            background: rgba(30,29,44,0.6);
+            backdrop-filter: blur(2px);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s; 
+        }
+        .product-card:hover { box-shadow: 0 0 20px rgba(107, 114, 128, 0.2); } /* MODIFICATION: Ombre grise */
+        .product-card:active { transform: scale(0.97); }
+        
+        .category-pill {
+            background-color: rgba(63, 63, 90, 0.5);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            padding: 0.35rem 1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            font-size: 0.875rem;
+        }
+        .category-pill:hover,
+        .category-pill.active {
+            /* MODIFICATION: Passage du rouge au gris */
+            background-color: #6b7280; 
+            border-color: #9ca3af;
+        }
+        .category-pill:active { transform: scale(0.95); }
+
+        /* NOUVEAU: Style "bulle" pour la catégorie sur la page produit */
+        .category-bubble {
+            background-color: rgba(63, 63, 90, 0.5); /* Fond transparent */
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            padding: 0.35rem 0.75rem; 
+            border-radius: 50px; /* Forme pilule/bulle */
+            font-size: 0.875rem; /* Taille de police plus petite */
+            font-weight: 600; /* Garder le font-semibold */
+            text-align: center;
+            
+            /* MODIFICATION ESTHÉTIQUE: Légèrement plus large pour mieux respirer */
+            max-width: 180px; 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+        }
+        /* FIN NOUVEAU */
+
+        /* Styles pour la bannière fixe unique */
+        .fixed-banner-container {
+            width: 100%;
+            padding-top: 100%; /* Permet d'obtenir un ratio 1:1 pour un conteneur */
+            position: relative;
+            /* MODIFICATION ESTHÉTIQUE: Augmentation de la taille max pour plus d'impact */
+            max-width: 300px; 
+            margin-left: auto;
+            margin-right: auto;
+            /* MODIFICATION: Retrait de la bordure/ombre pour laisser place à la bulle de flou */
+            /* border: 1px solid rgba(255, 255, 255, 0.1); */
+            border-radius: 12px; /* Bords arrondis */
+            overflow: hidden;
+            /* box-shadow: 0 0 15px rgba(107, 114, 128, 0.2);  */
+        }
+
+        .fixed-banner-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover; 
+            border-radius: 12px; 
+        }
+        /* Fin des styles de bannière fixe unique */
+
+
+        /* MODIFICATION DEMANDÉE : Amélioration du visuel de la fiche produit */
+        .product-page-image-container { 
+            width: 100%;
+            aspect-ratio: 4 / 5; 
+            max-height: 70vh; 
+            overflow: hidden;
+            position: relative;
+            background-color: #000; 
+            margin-left: auto;
+            margin-right: auto;
+            max-width: 400px;
+        }
+        
+        .carousel-item img, .carousel-item iframe, .carousel-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; 
+            object-position: center; 
+            border-radius: 12px;
+        }
+        
+        .carousel-slide { display: flex; transition: transform 0.5s ease-in-out; height: 100%; }
+        .carousel-item { flex-shrink: 0; width: 100%; height: 100%; }
+        
+        .carousel-button {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            padding: 0.5rem;
+            cursor: pointer;
+            z-index: 20;
+            border-radius: 9999px;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+        .carousel-button:hover { opacity: 1; }
+        .carousel-button.left { left: 10px; }
+        .carousel-button.right { right: 10px; }
+
+
+        .action-button { 
+            transition: transform 0.1s; 
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+        }
+        .action-button:active { transform: scale(0.97); }
+        /* MODIFICATION: Passage du rouge au gris */
+        .order-button { background-color: #6b7280; color: white; }
+        .order-button:hover { background-color: #4b5563; }
+
+        .add-to-cart-button-new {
+            background-color: var(--card-bg);
+            /* MODIFICATION: Passage du rouge au gris */
+            border: 1px solid #6b7280;
+            color: #d1d5db;
+        }
+        .add-to-cart-button-new:hover { background-color: rgba(107, 114, 128, 0.1); }
+
+
+        .cart-page { 
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* MODIFICATION: Application de l'effet "modal" flou */
+            background-color: rgba(16, 15, 28, 0.8); /* Fond --bg-dark avec 80% opacité */
+            backdrop-filter: blur(5px);
+            z-index: 50;
+            overflow-y: auto;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0s 0.3s, opacity 0.3s ease-in-out;
+            /* MODIFICATION: Ajustement du padding pour la barre sticky en bas */
+            padding-bottom: 5rem; 
+        }
+        .cart-page.open { 
+            visibility: visible;
+            opacity: 1;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        /* NOUVEAU STYLE TOAST (Notification d'ajout au panier) */
+        #message-modal {
+            position: fixed;
+            bottom: 5rem; /* Au-dessus de la barre de navigation */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-out;
+            width: 90%;
+            max-width: 300px;
+        }
+        #message-modal.show {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(-50%) translateY(-20px); /* Petit effet de glissement vers le haut */
+        }
+        .modal-content {
+            /* MODIFICATION: Passage du rouge au gris */
+            background: #6b7280; 
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px; /* Forme pilule */
+            text-align: center;
+            /* MODIFICATION: Ombre grise */
+            box-shadow: 0 4px 15px rgba(107, 114, 128, 0.5);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-content button {
+            background: transparent;
+            border: none;
+            color: white;
+            font-weight: bold;
+            padding: 0 0.5rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+        /* FIN NOUVEAU STYLE TOAST */
+
+
+        .cart-page-header { background-color: var(--bg-dark); border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        
+        /* NOUVEAU STYLE PILULE ET EFFET LUMIÈRE POUR LES BOUTONS DE POIDS */
+        .weight-button { 
+            background-color: #33334d; 
+            border-radius: 9999px; /* Forme pilule */
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            color: #ffffff;
+            transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s; 
+            text-align: center;
+        }
+        .weight-button:active { transform: scale(0.95); }
+        .weight-button.active { 
+            /* MODIFICATION: Passage du rouge au gris */
+            background-color: #6b7280; 
+            box-shadow: 0 0 15px rgba(107, 114, 128, 0.6); /* Effet de lueur grise */
+            transform: scale(1.05); 
+        }
+
+        .separator { width: 50%; height: 1px; background-color: rgba(255, 255, 255, 0.1); margin: 1rem auto; }
+        
+        .variety-btn { transition: transform 0.1s; border-color: #33334d; }
+        .variety-btn.active {
+            /* MODIFICATION: Passage du rouge au gris */
+            background-color: #6b7280;
+            border-color: #9ca3af;
+            color: white;
+        }
+        .variety-btn:active { transform: scale(0.95); }
+
+        /* AMÉLIORATION DE LA LISIBILITÉ SUR MOBILE */
+        .product-page-content h2 {
+            font-size: 1.75rem; /* Augmenter légèrement la taille du nom du produit */
+        }
+        
+        /* MODIFICATION ESTHÉTIQUE: Retrait de cette règle pour laisser Tailwind (via JS) gérer la taille */
+        /* .product-options h3 {
+             font-size: 1.2rem; 
+        } */
+
+        /* --- SPLASH SCREEN STYLES --- */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-dark);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 1;
+            transition: opacity 0.5s ease-in-out; 
+        }
+        #splash-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .splash-logo {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%; 
+            animation: zoomOutPulse 0.7s forwards; 
+        }
+        
+        @keyframes zoomOutPulse {
+            0% { transform: scale(2.0); opacity: 1; } 
+            50% { transform: scale(1.0); opacity: 1; } 
+            100% { transform: scale(0); opacity: 0; } 
+        }
+        /* --------------------------- */
+    </style>
+</head>
+<body class="bg-[--bg-dark] text-white">
+    
+    <!-- NOUVEAU FOND: Container pour l'animation Canvas des vagues --><div id="wave-container">
+        <canvas id="waveCanvas"></canvas>
+    </div>
+
+    <!-- Écran de Démarrage (Splash Screen) --><div id="splash-screen">
+        <!-- MODIFICATION: Logo supprimé -->
+    </div>
+
+    <!-- Section principale de l'application --><div id="main-app" class="container-main mx-auto p-4 max-w-sm overflow-hidden pb-32" style="visibility: hidden;">
+        <!-- Bannière Héro (Maintenant une vidéo animée) --><header class="flex flex-col items-center justify-center p-8">
+            <div class="fixed-banner-container">
+                <!-- NOUVEAU: Arrière-plan flouté pour le logo -->
+                <!-- MODIFICATION: Opacité réduite à 50% (0.6 -> 0.5) -->
+                <div class="absolute top-0 left-0 w-full h-full rounded-xl bg-[rgba(30,29,44,0.5)] backdrop-blur-sm border-2 border-[rgba(255,255,255,0.2)]"></div>
+                
+                <!-- MODIFICATION: Ajout de z-10 pour que la vidéo soit au-dessus du flou -->
+                <video id="fixed-banner-video" src="https://raw.githubusercontent.com/ZATI53/LPirateMiniApp/main/LogoPurple.mp4" alt="Logo Animé" class="fixed-banner-image z-10" autoplay loop muted playsinline style="opacity: 0.75;" onerror="this.style.display='none'"></video>
+            </div>
+        </header>
+
+        <div class="separator"></div>
+        
+        <!-- Section des catégories --><section class="py-6 bg-[rgba(30,29,44,0.6)] backdrop-blur-[2px] border-2 border-[rgba(255,255,255,0.2)] rounded-xl">
+            <h2 class="text-xl font-bold mb-4 text-center">Catégorie</h2>
+            <!-- MISE A JOUR: Wrapper pour les catégories --><div class="category-section-wrapper flex justify-center flex-wrap gap-3 mx-auto max-w-[18rem]">
+                <span class="category-pill" onclick="toggleFilter(this, 'WEED')">WEED</span>
+                <span class="category-pill" onclick="toggleFilter(this, 'HASH')">HASH</span>
+                <span class="category-pill" onclick="toggleFilter(this, 'AUTRE')">AUTRE</span>
+            </div>
+        </section>
+
+        <!-- Ligne de séparation --><div class="separator"></div>
+
+        <!-- Grille des produits --><section id="product-grid" class="p-4 bg-[rgba(30,29,44,0.6)] backdrop-blur-[2px] border-2 border-[rgba(255,255,255,0.2)] rounded-xl">
+            <!-- Les cartes de produits seront générées dynamiquement ici --></section>
+    </div>
+
+    <!-- Section Fiche Produit (cachée par défaut) --><div id="product-page" class="hidden relative">
+        <!-- MODIFICATION: Ajout de l'effet bulle au conteneur de la page produit --><div class="product-page-content mx-auto p-4 max-w-sm overflow-hidden pb-32 bg-[rgba(30,29,44,0.6)] backdrop-blur-[2px] border-2 border-[rgba(255,255,255,0.2)] rounded-xl">
+            
+            <!-- MODIFICATION: Layout de l'en-tête ajusté pour centrer le logo et mettre la catégorie à droite --><header class="p-4 bg-transparent text-white flex justify-between items-center sticky top-0 z-50">
+                <!-- Gauche: Bouton retour (taille fixe pour l'équilibre) --><!-- MODIFICATION: Ajout du style bulle --><button onclick="window.hideProduct()" class="text-white text-2xl rounded-full bg-[rgba(63,63,90,0.5)] backdrop-blur-sm border border-[rgba(255,255,255,0.2)] hover:bg-[rgba(63,63,90,0.8)] transition-colors active:scale-90 w-10 h-10 flex items-center justify-center"><i class="fas fa-arrow-left"></i></button>
+                
+                <!-- MODIFICATION: Logo supprimé -->
+                
+                <!-- Droite: Bulle de catégorie --><h1 id="product-category" class="category-bubble uppercase min-w-[2.5rem] flex justify-center"></h1>
+            </header>
+            
+            <!-- MODIFICATION APPLIQUÉE : Le conteneur d'image utilise maintenant les nouveaux styles CSS --><div class="product-page-image-container rounded-xl shadow-lg mb-4">
+                <div id="carousel-track" class="carousel-slide">
+                    <!-- Les images/videos de toutes les variétés seront injectées ici --></div>
+                <button class="carousel-button left" onclick="window.prevSlide()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+                <button class="carousel-button right" onclick="window.nextSlide()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="p-4 mx-auto max-w-md">
+                <!-- MODIFICATION ESTHÉTIQUE: text-2xl -> text-3xl --><h2 id="product-name" class="text-3xl font-bold mt-4 mb-2"></h2>
+                
+                <div id="product-options" class="mb-6">
+                    <!-- Les options de variété et de poids seront injectées ici --></div>
+
+                <div class="flex flex-col space-y-4">
+                    <button id="buy-now-btn" class="action-button order-button">
+                        <i class="fab fa-telegram-plane"></i>
+                        <span class="ml-2">COMMANDER</span>
+                    </button>
+                    <button id="add-to-cart-btn" class="action-button add-to-cart-button-new">AJOUTER AU PANIER</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Page du panier (cachée par défaut) --><div id="cart-page" class="cart-page">
+        <div class="cart-page-header flex justify-between items-center p-4 sticky top-0 z-10">
+            <button onclick="window.closeCartPage()" class="text-white text-2xl p-2 rounded-full hover:bg-[#33334d] transition-colors active:scale-90"><i class="fas fa-arrow-left"></i></button>
+            <h1 class="text-2xl font-bold">Mon Panier</h1>
+            <button onclick="window.clearCart()" class="text-gray-400 hover:text-white transition-colors active:scale-90 p-2"><i class="fas fa-trash-alt"></i></button>
+        </div>
+        <div id="cart-items-page" class="flex-grow p-4">
+            <!-- Les articles du panier seront injectés ici --></div>
+        <!-- MODIFICATION: Positionnement du total du panier (bottom-0) --><div class="cart-page-total flex justify-between items-center px-4 py-6 border-t border-gray-700 sticky bottom-0 bg-[--bg-dark] shadow-lg z-10">
+            <div class="text-xl font-bold">Total: <span id="cart-total-page">0€</span></div>
+            <button onclick="window.placeOrder()" class="buy-button py-3 px-6 rounded-lg text-lg font-bold order-button active:scale-[0.97]">
+                <i class="fab fa-telegram-plane"></i>
+                <span class="ml-2">COMMANDER</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal pour les messages (Transformé en Toast) --><div id="message-modal" class="hidden">
+        <div class="modal-content">
+            <p id="modal-text" class="text-sm font-semibold"></p>
+            <button onclick="window.closeModal()">OK</button>
+        </div>
+    </div>
+
+    <!-- Barre de navigation en bas --><nav class="nav-bar fixed bottom-4 flex justify-around items-center h-16 shadow-lg">
+        
+        <a href="#" onclick="window.showHome()" class="nav-link flex flex-col items-center">
+            <i class="fas fa-home text-xl"></i>
+            <span class="text-xs mt-1">Accueil</span>
+        </a>
+        
+        <!-- MODIFICATION: Bouton WhatsApp supprimé -->
+        
+        <a href="#" onclick="window.openExternalLink('https://t.me/LPiratee', this)" class="nav-link flex flex-col items-center">
+            <i class="fab fa-telegram text-xl"></i>
+            <span class="text-xs mt-1">Telegram</span>
+        </a>
+        
+        <a href="#" onclick="window.openCartPage()" class="nav-link relative flex flex-col items-center">
+            <i class="fas fa-shopping-basket text-xl"></i>
+            <span class="text-xs mt-1">Panier</span>
+            <!-- MODIFICATION: Passage du rouge au gris (bg-red-500 -> bg-gray-500) -->
+            <span id="cart-counter" class="absolute top-0 right-2 bg-gray-500 rounded-full text-xs font-bold w-5 h-5 flex items-center justify-center -mt-2" style="display: none;">0</span>
+        </a>
+        
+     </nav>
+
+    <!-- Scripts JavaScript --><script>
+        // #############################################################
+        // # DÉBUT DE L'INJECTION DE DONNÉES
+        // #############################################################
+        const products = {
+    "test_prod_001": {
+        "id": "test_prod_001",
+        "name": "Produit 1",
+        "prices": {
+            "1g": 10,
+            "5g": 45,
+            "10g": 80
+        },
+        "category": "WEED",
+        "varieties": [
+            "Alpha-1",
+            "Alpha-2"
+        ],
+        "images": [
+            "https://raw.githubusercontent.com/ZATI53/LPirateMiniApp/main/1.mp4"
+        ],
+        "mediaMap": {
+            "Alpha-1": [
+                "https://placehold.co/600x800/111/fff?text=Alpha-1"
+            ],
+            "Alpha-2": [
+                "https://placehold.co/600x800/222/fff?text=Alpha-2"
+            ]
+        },
+        "extraInfo": "Qualité Test",
+        "extraInfoColor": "#08d489",
+        "extraInfoBackgroundColor": "#000000",
+        "color": "#ffffff",
+        "cardColor": "#2a2a47"
+    },
+    "test_prod_002": {
+        "id": "test_prod_002",
+        "name": "Produit 2",
+        "prices": {
+            "10g": 50,
+            "50g": 200,
+            "100g": 350
+        },
+        "category": "HASH",
+        "varieties": [
+            "Bêta-Jaune",
+            "Bêta-Marron"
+        ],
+        "images": [
+            "https://raw.githubusercontent.com/ZATI53/LPirateMiniApp/main/2.mp4"
+        ],
+        "mediaMap": {
+            "Bêta-Jaune": [
+                "https://placehold.co/600x800/444/fff?text=Bêta-Jaune"
+            ],
+            "Bêta-Marron": [
+                "https://placehold.co/600x800/555/fff?text=Bêta-Marron"
+            ]
+        },
+        "extraInfo": "Nouveau Test",
+        "extraInfoColor": "#34d399",
+        "extraInfoBackgroundColor": "#000000",
+        "color": "#ffffff",
+        "cardColor": "#2a2a47"
+    },
+    "test_prod_003": {
+        "id": "test_prod_003",
+        "name": "Produit 3",
+        "prices": {
+            "Unité": 25,
+            "Pack de 5": 100
+        },
+        "category": "AUTRE",
+        "varieties": [
+            "Goût Gamma"
+        ],
+        "images": [
+            "https://raw.githubusercontent.com/ZATI53/LPirateMiniApp/main/3.mp4"
+        ],
+        "mediaMap": {
+            "Goût Gamma": [
+                "https://placehold.co/600x800/666/fff?text=Gamma"
+            ]
+        },
+        "extraInfo": null,
+        "extraInfoColor": "#34d399",
+        "extraInfoBackgroundColor": "#000000",
+        "color": "#ffffff",
+        "cardColor": "#2a2a47"
+    }
+};
+        const heroImages = ["https://placehold.co/500x500/8b0000/ffffff?text=Votre+Bannière"]; // Une seule image carrée
+        const orderUrl = "https://t.me/LPiratee"; // <-- URL DE COMMANDE INJECTÉE
+        // #############################################################
+        // # FIN DE L'INJECTION DE DONNÉES
+        // #############################################################
+        
+        let cartItems = JSON.parse(localStorage.getItem('cartItems')) || {};
+        let currentFilter = null;
+        let currentProduct = null;
+        let selectedVariety = null;
+        let selectedWeight = null;
+        let currentSlide = 0; // Pour carrousel page produit
+        let startX = 0;
+        let endX = 0;
+
+        // --- Sélecteurs DOM ---
+        const mainApp = document.getElementById('main-app');
+        const productPage = document.getElementById('product-page');
+        const cartPage = document.getElementById('cart-page');
+        const cartCounter = document.getElementById('cart-counter');
+        const productName = document.getElementById('product-name');
+        const productOptions = document.getElementById('product-options');
+        const carouselTrack = document.getElementById('carousel-track'); // Page produit
+        const buyNowBtn = document.getElementById('buy-now-btn');
+        const addToCartBtn = document.getElementById('add-to-cart-btn');
+        const productGrid = document.getElementById('product-grid');
+        const productCategoryTitle = document.getElementById('product-category');
+        const splashScreen = document.getElementById('splash-screen'); 
+        const navLinks = document.querySelectorAll('.nav-link'); 
+        
+        // --- NOUVEAU: Variables pour le Canvas de Vagues ---
+        let canvas, ctx, waves, animationFrame = 0; 
+        const numberOfWaves = 19; 
+        const baseSpeed = 0.005;
+        const speedRange = 0.003; 
+        const minStrokeWidth = 3;
+        const maxStrokeWidth = 5;
+        const maxSubWaves = 25; 
+        const subWaveSpacing = 4; 
+        // MODIFICATION ESTHÉTIQUE: Lignes de vagues adoucies (gris clair au lieu de blanc pur)
+        const subWaveColorBase = 220; // Était 255
+        // --------------------------------------------------
+
+
+        // --- Gestion Panier ---
+        function saveCart() { localStorage.setItem('cartItems', JSON.stringify(cartItems)); updateCartCounter(); }
+        function updateCartCounter() { 
+            let count = 0; 
+            for (const itemId in cartItems) count += cartItems[itemId].quantity; 
+            if (cartCounter) { 
+                cartCounter.textContent = count;
+                cartCounter.style.display = count > 0 ? 'flex' : 'none';
+            }
+        }
+        // --- Fin Gestion Panier ---
+
+        // --- Grille Produits (Logique de génération depuis le JS du template) ---
+        function initProductGrid() {
+             if (!productGrid) return;
+             productGrid.innerHTML = '';
+             const allProducts = Object.values(products || {}); // Sécurité
+             const displayedProducts = currentFilter ? allProducts.filter(p => p.category === currentFilter) : allProducts;
+             productGrid.className = displayedProducts.length === 1 ? 'flex justify-center pt-4' : 'grid grid-cols-2 gap-4 pt-4'; 
+             if (displayedProducts.length === 0) { productGrid.innerHTML = '<p class="text-center text-gray-400 col-span-full py-10">Restock en cours...</p>'; }
+             else {
+                 displayedProducts.forEach(product => {
+                     const card = document.createElement('div');
+                     card.className = 'product-card cursor-pointer active:scale-[0.97]';
+                     /* MODIFICATION: Retrait du style JS pour laisser le CSS (effet bulle) s'appliquer */
+                     /* card.style.backgroundColor = product.cardColor || '#1e1d2c'; */ 
+                     if (displayedProducts.length === 1) card.classList.add('w-full', 'max-w-xs');
+                     card.onclick = () => showProduct(product.id);
+                     
+                    let mediaUrl = (product.images && product.images.length > 0) ? product.images[0] : 'https://placehold.co/600x600/1e1d2c/ff3333?text=Image+Produit';
+                    
+                    let mediaHTML = '';
+                    if (mediaUrl.toLowerCase().includes('.mp4')) {
+                        mediaHTML = `<video src="${mediaUrl}" alt="${product.name}" class="w-full h-40 object-cover rounded-xl" autoplay loop muted playsinline onerror="this.style.display='none'"></video>`;
+                    } else {
+                        mediaHTML = `<img src="${mediaUrl}" alt="${product.name}" class="w-full h-40 object-cover rounded-xl" onerror="this.src='https://placehold.co/600x400/2a2a47/fff?text=Img'; this.onerror=null;">`;
+                    }
+                     
+                     let extraInfo = '';
+                     if (product.extraInfo) {
+                             const infoTextColor = product.extraInfoColor || '#ff3333'; 
+                             const infoBgColor = product.extraInfoBackgroundColor || '#000000'; 
+                             extraInfo += `<p class="text-xs font-bold mt-1"><span class="px-2 py-0.5 rounded-full inline-block" style="color: ${infoTextColor}; background-color: ${infoBgColor};">${product.extraInfo.toUpperCase()}</span></p>`;
+                     } else if (product.varieties && product.varieties.length > 1 && !(product.varieties.length === 1 && product.varieties[0] === product.name)) {
+                             /* MODIFICATION: Passage du rouge au gris */
+                             extraInfo += `<p class="text-xs font-bold mt-1"><span class="bg-gray-700/50 px-2 py-0.5 rounded-full inline-block text-gray-300">${product.varieties.length} VARIÉTÉS</span></p>`;
+                     }
+
+                     const titleColor = product.color || '#ffffff'; 
+                     
+                     const validPrices = Object.values(product.prices).filter(p => p !== null && p > 0);
+                     const priceText = validPrices.length > 0 ? `A partir de ${Math.min(...validPrices)}€` : 'Prix sur demande';
+                     
+                     /* MODIFICATIONS ESTHÉTIQUES:
+                        - Image: h-32 -> h-40 (plus haute)
+                        - Nom produit: text-sm -> text-base (plus grand)
+                        - Prix: text-xs text-gray-400 -> text-sm text-gray-300 (plus grand et plus clair)
+                        - MODIFICATION: rounded-t-xl -> rounded-xl (tous les coins arrondis)
+                      */
+                      card.innerHTML = `
+                         ${mediaHTML}
+                          <div class="p-2">
+                              <h3 class="font-bold text-base" style="color: ${titleColor};">${product.name}</h3>
+                              <p class="text-gray-300 text-sm">${priceText}</p>
+                             ${extraInfo}
+                         </div>
+                     `;
+                     productGrid.appendChild(card);
+                 });
+             }
+         }
+        // NOUVEAU: toggleFilter mis à jour pour ne pas dépendre des IDs
+        window.toggleFilter = function(clickedPill, category) {
+            const pills = document.querySelectorAll('.category-pill');
+            if (currentFilter === category) {
+                currentFilter = null;
+                pills.forEach(pill => pill.classList.remove('active'));
+            } else {
+                currentFilter = category;
+                pills.forEach(pill => pill.classList.remove('active'));
+                if (clickedPill) {
+                    clickedPill.classList.add('active');
+                }
+            }
+            initProductGrid();
+         };
+
+
+        // --- Carrousel Page Produit ---
+        function pauseAllVideos() { carouselTrack?.querySelectorAll('video').forEach(video => { if (!video.paused) video.pause(); }); } 
+        function playCurrentVideo() {
+            const currentItem = carouselTrack?.children[currentSlide]; 
+            if (currentItem) { const video = currentItem.querySelector('video'); if (video) { video.currentTime = 0; video.play().catch(e => console.log('Autoplay blocked:', e)); } }
+         }
+        function updateCarousel() { 
+            const totalSlides = carouselTrack?.children.length || 0; 
+            if (totalSlides > 0) { 
+                carouselTrack.style.transform = `translateX(-${currentSlide * 100}%)`; 
+                pauseAllVideos(); 
+                playCurrentVideo(); 
+                
+                // --- LOGIQUE INVERSÉE (Slide change -> Bouton sélectionné) ---
+                const currentSlideElement = carouselTrack.children[currentSlide];
+                if (currentSlideElement) {
+                    const slideVariety = currentSlideElement.getAttribute('data-variety');
+                    if (slideVariety && slideVariety !== selectedVariety) {
+                        // Appelle selectVariety SANS événement pour juste mettre à jour le UI
+                        window.selectVariety(slideVariety, null); 
+                    }
+                }
+            } 
+        } 
+        window.nextSlide = function() { const total = carouselTrack?.children.length || 0; if (total > 1) { currentSlide = (currentSlide + 1) % total; updateCarousel(); } } 
+        window.prevSlide = function() { const total = carouselTrack?.children.length || 0; if (total > 1) { currentSlide = (currentSlide - 1 + total) % total; updateCarousel(); } } 
+        if (carouselTrack) {
+            carouselTrack.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; pauseAllVideos(); }, { passive: true });
+            carouselTrack.addEventListener('touchend', (e) => { endX = e.changedTouches[0].clientX; const diffX = endX - startX; if (diffX > 50) window.prevSlide(); else if (diffX < -50) window.nextSlide(); else playCurrentVideo(); });
+        }
+
+
+        // --- Modal (Toast) ---
+        let toastTimer;
+        function showMessage(message) { 
+            const modal = document.getElementById('message-modal');
+            const modalText = document.getElementById('modal-text');
+            if (modalText) modalText.textContent = message;
+            if (modal) {
+                modal.classList.add('show');
+            }
+            
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                window.closeModal();
+            }, 3000);
+        }
+        window.closeModal = function() { 
+            const modal = document.getElementById('message-modal');
+            if (modal) modal.classList.remove('show');
+        } 
+
+        // --- Logique Page Produit (JS Corrigé pour .active) ---
+        function updateProductCarousel(product, varietyToHighlight) {
+             if (!carouselTrack) return; 
+             carouselTrack.innerHTML = ''; currentSlide = 0;
+             
+             let slideIndex = 0;
+             let varietyFound = false;
+             
+             product.varieties.forEach(varietyName => {
+                 const mediaUrls = (product.mediaMap && product.mediaMap[varietyName]) 
+                                    ? product.mediaMap[varietyName] 
+                                    : product.images; // Fallback
+                 
+                 if (mediaUrls && mediaUrls.length > 0) {
+                      mediaUrls.forEach(url => {
+                          const mediaElement = document.createElement('div'); 
+                          mediaElement.className = 'carousel-item'; 
+                          mediaElement.setAttribute('data-variety', varietyName); // Important: lie le slide à la variété
+                          let content = url.toLowerCase().includes('.mp4') ? `<video autoplay controls playsinline loop muted class="w-full h-full"><source src="${url}" type="video/mp4">Vidéo non supportée.</video>` : `<img src="${url}" alt="${product.name}" class="w-full h-full" onerror="this.src='https://placehold.co/600x400/2a2a47/fff?text=Img'; this.onerror=null;">`;
+                          mediaElement.innerHTML = content; 
+                          carouselTrack.appendChild(mediaElement);
+                          
+                          if (varietyName === varietyToHighlight && !varietyFound) {
+                              currentSlide = slideIndex;
+                              varietyFound = true;
+                          }
+                          slideIndex++;
+                      });
+                 }
+             });
+             
+             if (carouselTrack.children.length === 0 && product.images && product.images.length > 0) {
+                 carouselTrack.innerHTML = `<div class="carousel-item" data-variety="${varietyToHighlight}"><img src="${product.images[0]}" class="w-full h-full object-cover"></div>`;
+             }
+             
+             updateCarousel();
+         }
+        
+        // --- FONCTION CORRIGÉE ---
+        window.selectVariety = function(variety, event) {
+             document.querySelectorAll('.variety-btn').forEach(b => b.classList.remove('active')); 
+             
+             if (event) { // Clic sur un bouton
+                 event.currentTarget.classList.add('active'); 
+             } else { // Appel depuis le carrousel
+                 const targetBtn = document.querySelector(`#product-options .variety-btn[data-value="${variety}"]`); 
+                 if(targetBtn) targetBtn.classList.add('active'); 
+             }
+             
+             selectedVariety = variety; 
+             
+             if (event && currentProduct.mediaMap) {
+                 updateProductCarousel(currentProduct, variety);
+             }
+         };
+
+        function showProduct(productId) {
+            currentProduct = products[productId]; if (!currentProduct) return;
+            if (productName) productName.textContent = currentProduct.name; 
+            if (productCategoryTitle) productCategoryTitle.textContent = currentProduct.category.toUpperCase();
+            selectedVariety = currentProduct.varieties.length > 0 ? currentProduct.varieties[0] : null;
+            
+            let varietyHTML = ''; 
+            const showVarieties = !(currentProduct.varieties.length === 1 && currentProduct.varieties[0] === currentProduct.name);
+            
+            /* MODIFICATION ESTHÉTIQUE: text-xl -> text-lg font-semibold text-gray-200 */
+            if (currentProduct.varieties && currentProduct.varieties.length > 0 && showVarieties) { 
+                varietyHTML = `<div class="mb-6"><h3 class="text-lg font-semibold mb-3 text-gray-200">Variété:</h3><div class="flex flex-wrap gap-2" id="variety-options">${currentProduct.varieties.map(v => `<button data-value="${v}" class="px-3 py-1 rounded-full border border-gray-600 hover:bg-gray-700 transition-colors text-xs variety-btn" onclick="selectVariety('${v}', event)">${v}</button>`).join('')}</div></div>`; 
+            }
+            
+            let weightHTML = ''; 
+            /* MODIFICATION ESTHÉTIQUE: text-xl -> text-lg font-semibold text-gray-200 */
+            if (currentProduct.prices) { 
+                weightHTML = `<div><h3 class="text-lg font-semibold mb-3 text-gray-200">Poids et Prix:</h3><div class="flex flex-wrap gap-3" id="weight-options">${Object.keys(currentProduct.prices).map(w => `<button data-weight="${w}" class="weight-button" onclick="selectWeight('${w}')"><span class="weight-text">${w}</span><span class="price-text">${currentProduct.prices[w] !== null ? ` ${currentProduct.prices[w]}€` : ''}</span></button>`).join('')}</div></div>`; 
+            }
+            
+            if (productOptions) productOptions.innerHTML = varietyHTML + weightHTML;
+            
+            const firstVarietyBtn = document.querySelector('#variety-options .variety-btn');
+            if(firstVarietyBtn && selectedVariety){
+                 firstVarietyBtn.classList.add('active');
+            }
+            
+            const firstWeightBtn = document.querySelector('#weight-options .weight-button'); 
+            if (firstWeightBtn) { 
+                firstWeightBtn.classList.add('active'); 
+                selectedWeight = firstWeightBtn.dataset.weight; 
+            }
+            
+            updateProductCarousel(currentProduct, selectedVariety); 
+            mainApp?.classList.add('hidden'); 
+            productPage?.classList.remove('hidden'); 
+            window.scrollTo(0, 0);
+        }
+
+        window.selectWeight = function(weight) { selectedWeight = weight; document.querySelectorAll('.weight-button').forEach(btn => btn.classList.remove('active')); document.querySelector(`[data-weight="${weight}"]`).classList.add('active'); };
+        
+        // --- Gestion de la navigation et de l'état actif ---
+        function setActiveNav(clickedLink) {
+            navLinks.forEach(link => link.classList.remove('active'));
+            if (clickedLink) {
+                clickedLink.classList.add('active');
+            }
+        }
+
+        // NOUVELLE FONCTION: Pour ouvrir les liens dans une Mini App
+        window.openExternalLink = function(url, element) {
+            setActiveNav(element);
+            
+            if (window.Telegram && window.Telegram.WebApp) {
+                window.Telegram.WebApp.openLink(url);
+            } else {
+                console.log("Hors TMA, ouverture via window.open");
+                window.open(url, '_blank');
+            }
+
+            setTimeout(() => {
+                const currentActive = cartPage.classList.contains('open') ? 
+                    document.querySelector('a[onclick="window.openCartPage()"]') :
+                    document.querySelector('a[onclick="window.showHome()"]');
+                setActiveNav(currentActive);
+            }, 2000);
+        }
+
+
+        // --- Navigation et Panier ---
+        window.showHome = function(event) { 
+            // event.preventDefault(); 
+            const homeLink = document.querySelector('a[onclick="window.showHome()"]');
+            setActiveNav(homeLink);
+            
+            closeCartPage(); 
+            pauseAllVideos(); 
+            productPage?.classList.add('hidden'); 
+            mainApp?.classList.remove('hidden'); 
+            currentFilter = null; 
+            document.querySelectorAll('.category-pill').forEach(pill => pill.classList.remove('active')); 
+            initProductGrid(); 
+        }
+        
+        window.hideProduct = function() { 
+            pauseAllVideos(); 
+            productPage?.classList.add('hidden'); 
+            mainApp?.classList.remove('hidden'); 
+            const homeLink = document.querySelector('a[onclick="window.showHome()"]');
+            setActiveNav(homeLink);
+        }
+        
+        window.openCartPage = function(event) { 
+            // event.preventDefault();
+            const cartLink = document.querySelector('a[onclick="window.openCartPage()"]');
+            setActiveNav(cartLink);
+            
+            pauseAllVideos(); 
+            cartPage?.classList.add('open'); 
+            mainApp?.classList.add('hidden'); 
+            productPage?.classList.add('hidden'); 
+            updateCartPage(); 
+        }
+        
+        window.closeCartPage = function() { 
+            cartPage?.classList.remove('open'); 
+            mainApp?.classList.remove('hidden'); 
+            const homeLink = document.querySelector('a[onclick="window.showHome()"]');
+            setActiveNav(homeLink);
+        }
+        function updateCartPage() {
+            const cartItemsContainer = document.getElementById('cart-items-page'); if (!cartItemsContainer) return; cartItemsContainer.innerHTML = ''; let total = 0; const items = Object.values(cartItems);
+            if (items.length === 0) { cartItemsContainer.innerHTML = '<p class="text-center text-gray-400 py-10">Votre panier est vide.</p>'; document.getElementById('cart-total-page').textContent = `0€`; return; }
+            items.forEach(item => { 
+                const itemPrice = item.price || 0; 
+                const itemTotal = itemPrice * item.quantity; 
+                total += itemTotal;
+                const itemElement = document.createElement('div'); itemElement.className = 'cart-page-item flex items-center p-2 mb-2 bg-[--card-bg] rounded-lg shadow-md';
+                const product = products[item.id.split('-')[0]]; let imageUrl = product && product.images.length > 0 ? product.images[0] : 'https://placehold.co/100/1e1d2c/fff?text=Img';
+                itemElement.innerHTML = `<div class="w-16 h-16 rounded-md overflow-hidden mr-4 flex-shrink-0"><img src="${imageUrl}" alt="${item.name}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/100/2a2a47/fff?text=Img'; this.onerror=null;"></div><div class="flex-1 min-w-0"><h4 class="font-semibold truncate">${item.name}</h4><p class="text-sm text-gray-400 truncate">${item.weight} - ${item.variety}</p><p class="text-sm text-gray-400">Quantité: ${item.quantity}</p></div><div class="text-right ml-4 flex-shrink-0"><p class="font-bold">${item.price !== null ? `${itemTotal}€` : '(Sur demande)'}</p><button onclick="removeFromCart('${item.id}')" class="text-gray-500 hover:text-gray-400 transition-colors text-xs mt-1 active:scale-90"><i class="fas fa-trash-alt mr-1"></i>Supprimer</button></div>`;
+                cartItemsContainer.appendChild(itemElement);
+             }); 
+             const totalPageEl = document.getElementById('cart-total-page');
+             if (totalPageEl) totalPageEl.textContent = `${total}€`;
+        }
+        
+        if (addToCartBtn) {
+            addToCartBtn.addEventListener('click', () => {
+                if (!selectedVariety || !selectedWeight) { showMessage("Veuillez sélectionner une variété et un poids."); return; }
+                const itemId = `${currentProduct.id}-${selectedWeight}-${selectedVariety}`;
+                if (cartItems[itemId]) cartItems[itemId].quantity++; else cartItems[itemId] = { id: itemId, name: currentProduct.name, variety: selectedVariety, weight: selectedWeight, price: currentProduct.prices[selectedWeight], quantity: 1 };
+                saveCart(); showMessage(`"${selectedVariety} (${selectedWeight})" ajouté au panier !`);
+             });
+        }
+        
+        if (buyNowBtn) {
+            buyNowBtn.addEventListener('click', () => {
+                if (!selectedVariety || !selectedWeight) { showMessage("Veuillez sélectionner une variété et un poids."); return; }
+                const price = currentProduct.prices[selectedWeight]; 
+                let message = `Bonjour, je souhaite commander :\n- ${currentProduct.name}\n- Variété: ${selectedVariety}\n- Poids: ${selectedWeight}\n- Quantité: 1\n- Prix total: ${price !== null ? `${price}€` : 'N/A'}`; 
+                window.location.href = `${orderUrl}?text=${encodeURIComponent(message)}`;
+             });
+        }
+        
+        window.removeFromCart = (itemId) => { delete cartItems[itemId]; saveCart(); updateCartPage(); };
+        
+        window.clearCart = () => { 
+            if (Object.keys(cartItems).length > 0) {
+                cartItems = {}; 
+                saveCart(); 
+                updateCartPage(); 
+                showMessage("Panier vidé.");
+            }
+        };
+        
+        window.placeOrder = () => {
+             const items = Object.values(cartItems); if (items.length === 0) { showMessage("Votre panier est vide."); return; }
+             let itemsString = ""; let total = 0;
+             items.forEach((item, i) => { 
+                 const itemPrice = item.price || 0; 
+                 const itemTotal = itemPrice * item.quantity; 
+                 itemsString += `[${item.name} (${item.variety}, ${item.weight}) x ${item.quantity} -> ${item.price !== null ? `${itemTotal}€` : 'Prix N/A'}]${i < items.length - 1 ? " | " : ""}`; 
+                 total += itemTotal; 
+             });
+             const fullMessage = `Salut, je voudrais passer une commande : ${itemsString} | Total de la commande : ${total > 0 ? `${total}€` : 'A discuter'} | Merci !`; 
+             window.location.href = `${orderUrl}?text=${encodeURIComponent(fullMessage)}`;
+             cartItems = {}; saveCart(); updateCartPage(); 
+         };
+         
+        // #############################################################
+        // # DÉBUT DES FONCTIONS DU FOND DE VAGUES ANIMÉES (Canvas)
+        // #############################################################
+        
+        /**
+         * Initialise les paramètres des vagues
+         */
+        function initWaves() {
+            canvas = document.getElementById('waveCanvas');
+            if (!canvas) return;
+            ctx = canvas.getContext('2d');
+            waves = [];
+
+            const minStrokeWidth = 3;
+            const maxStrokeWidth = 5;
+            
+            const startYOffset = -0.05; 
+            const spacing = (1 - startYOffset) / numberOfWaves; 
+            
+            for (let i = 0; i < numberOfWaves; i++) {
+                const direction = (Math.random() < 0.5) ? -1 : 1; 
+
+                const randomVariation = (Math.random() * 2 - 1) * speedRange;
+                const speed = (baseSpeed + randomVariation) * direction;
+                
+                const randomStrokeWidth = Math.random() * (maxStrokeWidth - minStrokeWidth) + minStrokeWidth;
+
+                const randomPhase = Math.random() * Math.PI * 2;
+                const baseFrequency = 0.006 + (Math.random() * 0.003); 
+
+                waves.push({
+                    /* MODIFICATION ESTHÉTIQUE: Couleur de remplissage des vagues (pour correspondre à --card-bg) */
+                    color: 'rgba(30, 29, 44, 1)', // Était 'rgba(26, 26, 26, 1)'
+                    amplitude: 30, 
+                    frequency: baseFrequency, 
+                    speed: speed, 
+                    yOffset: startYOffset + (i * spacing), 
+                    strokeWidth: randomStrokeWidth, 
+                    phase: randomPhase,
+                    frequencyOffset: Math.random() * Math.PI * 2 
+                });
+            }
+        }
+
+        /**
+         * Dessine une ligne de vague avec un décalage vertical.
+         */
+        const traceWaveLine = (color, width, yDelta, startY, phase, dynamicAmplitude, dynamicFrequency, w) => {
+            if (!ctx) return;
+            ctx.beginPath();
+            
+            const startYPosition = startY + Math.sin(0 * dynamicFrequency + phase) * dynamicAmplitude;
+            
+            ctx.moveTo(0, startYPosition + yDelta);
+
+            for (let x = 0; x < w; x++) {
+                const y = startY + Math.sin(x * dynamicFrequency + phase) * dynamicAmplitude;
+                ctx.lineTo(x, y + yDelta);
+            }
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+         };
+
+        /**
+         * Dessine une seule vague sinusoïdale avec ses sous-vagues.
+         */
+        function drawWave(config, index) {
+            if (!ctx || !canvas) return;
+            const { color, amplitude, frequency, yOffset, strokeWidth } = config;
+            const h = canvas.height;
+            const w = canvas.width;
+            
+            const dynamicAmplitude = amplitude + (Math.sin(animationFrame / 150 + index) * 5); 
+            const dynamicFrequency = frequency + (Math.sin(animationFrame / 200 + config.frequencyOffset) * 0.0005);
+            
+            const startY = h * yOffset;
+            const phase = config.phase || 0;
+            
+            // --- 1. Remplissage du corps de la vague ---
+            ctx.beginPath();
+            
+            const startYPosition = startY + Math.sin(0 * dynamicFrequency + phase) * dynamicAmplitude;
+            ctx.moveTo(0, startYPosition);
+            
+            for (let x = 0; x < w; x++) {
+                const y = startY + Math.sin(x * dynamicFrequency + phase) * dynamicAmplitude;
+                ctx.lineTo(x, y);
+            }
+
+            ctx.lineTo(w, h);
+            ctx.lineTo(0, h);
+            ctx.closePath();
+
+            ctx.fillStyle = color;
+            ctx.fill();
+
+            // --- 2. Dessin des 25 sous-vagues (avec fondu d'opacité et d'épaisseur) ---
+            for (let i = 0; i < maxSubWaves; i++) {
+                const yDelta = i * subWaveSpacing; 
+                const opacity = 1.0 - (i / (maxSubWaves - 1) * 0.95); 
+                const width = Math.max(0.5, strokeWidth - (i / 10)); 
+
+                /* Utilise subWaveColorBase (maintenant 220) pour des lignes gris clair */
+                const lineColor = `rgba(${subWaveColorBase}, ${subWaveColorBase}, ${subWaveColorBase}, ${opacity.toFixed(2)})`;
+                
+                if (i === 0) {
+                    /* MODIFICATION: Lueur grise */
+                    ctx.shadowBlur = 8;   
+                    ctx.shadowColor = 'rgba(220, 220, 220, 0.8)'; 
+                }
+                
+                traceWaveLine(lineColor, width, yDelta, startY, phase, dynamicAmplitude, dynamicFrequency, w);
+                
+                if (i === 0) {
+                    ctx.shadowBlur = 0;
+                    ctx.shadowColor = 'transparent';
+                }
+            }
+        }
+
+        function resizeCanvas() {
+            const container = document.getElementById('wave-container');
+            if (canvas && container) {
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight;
+            }
+        }
+
+        function animate() {
+            if (!ctx || !canvas || !waves) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            waves.forEach((config, index) => {
+                drawWave(config, index); 
+                config.phase = (config.phase || 0) + config.speed;
+            });
+
+            animationFrame++; 
+            requestAnimationFrame(animate);
+        }
+        
+        // #############################################################
+        // # FIN DES FONCTIONS DU FOND DE VAGUES ANIMÉES
+        // #############################################################
+
+        // --- Initialisation ---
+        document.addEventListener('DOMContentLoaded', () => {
+             // Initialisation du fond de vagues
+             initWaves();
+             window.addEventListener('resize', resizeCanvas);
+             resizeCanvas();
+             animate();
+
+             // Afficher le splash screen au début
+             if(splashScreen) splashScreen.style.display = 'flex'; 
+             
+             // Initialisation de l'API Telegram
+             if (window.Telegram && window.Telegram.WebApp) {
+                 window.Telegram.WebApp.ready();
+             }
+
+             // Initialisation de la boutique après 0.7 seconde
+             setTimeout(() => {
+                 if(splashScreen) splashScreen.classList.add('hidden');
+                 if(mainApp) mainApp.style.visibility = 'visible';
+                 
+                 initProductGrid();
+                 updateCartCounter();
+                 
+                 // Définir l'onglet actif au démarrage
+                 const homeLink = document.querySelector('a[onclick="window.showHome()"]');
+                 setActiveNav(homeLink);
+
+             }, 700); // Durée ajustée à 0.7 seconde
+         });
+
+         window.showProduct = showProduct; window.hideProduct = hideProduct; window.openCartPage = openCartPage; window.closeCartPage = closeCartPage; window.closeModal = closeModal; window.selectWeight = selectWeight;
+    </script>
+</body>
+</html>
